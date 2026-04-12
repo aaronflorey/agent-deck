@@ -1232,6 +1232,54 @@ func TestRemoteRestartReturnsRemoteCommand(t *testing.T) {
 	_ = h
 }
 
+func TestSelectedRemotePreviewTarget(t *testing.T) {
+	home := NewHome()
+	home.width = 100
+	home.height = 30
+
+	remote := session.RemoteSessionInfo{ID: "remote-123", Title: "remote-session", RemoteName: "myserver"}
+	home.flatItems = []session.Item{{Type: session.ItemTypeRemoteSession, RemoteSession: &remote, RemoteName: "myserver"}}
+	home.cursor = 0
+
+	remoteName, sessionID, previewKey, ok := home.selectedRemotePreviewTarget()
+	if !ok {
+		t.Fatal("selectedRemotePreviewTarget should resolve remote selection")
+	}
+	if remoteName != "myserver" {
+		t.Fatalf("remoteName = %q, want %q", remoteName, "myserver")
+	}
+	if sessionID != "remote-123" {
+		t.Fatalf("sessionID = %q, want %q", sessionID, "remote-123")
+	}
+	if previewKey != "remote:myserver:remote-123" {
+		t.Fatalf("previewKey = %q, want %q", previewKey, "remote:myserver:remote-123")
+	}
+}
+
+func TestRenderRemotePreviewIncludesCachedResponse(t *testing.T) {
+	home := NewHome()
+	home.width = 100
+	home.height = 30
+
+	remote := session.RemoteSessionInfo{
+		ID:     "remote-123",
+		Title:  "remote-session",
+		Status: "waiting",
+		Path:   "/srv/project",
+	}
+	item := session.Item{Type: session.ItemTypeRemoteSession, RemoteSession: &remote, RemoteName: "myserver"}
+
+	home.previewCache[remotePreviewCacheKey("myserver", "remote-123")] = "Remote answer"
+
+	rendered := home.renderRemotePreview(item, 80, 20)
+	if !strings.Contains(rendered, "Last response") {
+		t.Fatalf("rendered preview should include last response header, got: %q", rendered)
+	}
+	if !strings.Contains(rendered, "Remote answer") {
+		t.Fatalf("rendered preview should include cached remote response, got: %q", rendered)
+	}
+}
+
 func TestRenderHelpBarTiny(t *testing.T) {
 	home := NewHome()
 	home.width = 45 // Tiny mode (<50 cols)
